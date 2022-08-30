@@ -7,10 +7,9 @@ uses
     FMX.Platform.Android,
   {$ENDIF}
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Maps,
-  FMX.WebBrowser, FMX.StdCtrls, FMX.Controls.Presentation, FMX.Edit, FMX.Layouts,
-  FMX.Objects, FMX.Ani, System.Sensors, System.Sensors.Components, System.Math,
-  UTM_WGS84;
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.WebBrowser,
+  FMX.StdCtrls, FMX.Controls.Presentation, FMX.Edit, FMX.Layouts, FMX.Objects,
+  FMX.Ani, System.Sensors, System.Sensors.Components, System.Math, UTM_WGS84;
 
 type
   TUbicacion = record
@@ -73,7 +72,6 @@ type
     procedure LocSensorHeadingChanged(Sender: TObject;
       const AHeading: THeading);
   private
-    { Private declarations }
     procedure AbrirVentana(const aFormClass: TComponentClass);
   public
     { Public declarations }
