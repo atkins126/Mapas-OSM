@@ -72,7 +72,7 @@ type
     procedure LocSensorHeadingChanged(Sender: TObject;
       const AHeading: THeading);
   private
-    procedure AbrirVentana(const aFormClass: TComponentClass);
+
   public
     { Public declarations }
   end;
@@ -174,19 +174,6 @@ begin
   end;
 end;
 
-procedure TFPrinc.AbrirVentana(const aFormClass: TComponentClass);
-begin
-  //if Assigned(FActiveForm) then FreeAndNil(FActiveForm);
-  try
-    Application.CreateForm(aFormClass,FActiveForm);
-    FActiveForm.Show;
-  finally
-    //FreeAndNil(FActiveForm);
-    FActiveForm.Free;
-  end;
-
-end;
-
 procedure TFPrinc.BBuscarClick(Sender: TObject);
 begin
   Ubication.Lat:=ELat.Text;
@@ -209,28 +196,24 @@ begin
 end;
 
 procedure TFPrinc.FormCreate(Sender: TObject);
-var
-  Coord: string;
 begin
   FormatSettings.DecimalSeparator:='.';
-  //esto es una prueba:
-  LocSensor.Active:=SwGPS.IsChecked;
-  Coord:='https://www.openstreetmap.org/export/embed.html?bbox='+
-         '-82,13,-53,1&layer=mapnik';
+  WebBrowser.URL:='https://www.openstreetmap.org/export/embed.html?bbox='+
+                  '-73.400,0.400,-59.700,12.600&layer=mapnik';
 end;
 
 procedure TFPrinc.FormShow(Sender: TObject);
-var
-  P1,P2: TPointF;
+//var
+  //Coord: string;
 begin
-  P1:=TPointF.Create(5,5);
-  P2:=TPointF.Create(300,300);
+  //https://www.openstreetmap.org/#map=6/6.447/-66.579
+  //esto es una prueba:
+  //LocSensor.Active:=SwGPS.IsChecked;
   LZoom.Text:=TrBarZoom.Value.ToString;
-  WebBrowser.URL:=MapURL;
+  //WebBrowser.URL:=MapURL;
+  WebBrowser.URL:='https://www.openstreetmap.org/export/embed.html?bbox='+
+                  '-73.400,0.400,-59.700,12.600&layer=mapnik';
   WebBrowser.StartLoading;
-  WebBrowser.Canvas.BeginScene;
-  WebBrowser.Canvas.DrawLine(P1,P2,1);
-  WebBrowser.Canvas.EndScene;
 end;
 
 procedure TFPrinc.LocSensorHeadingChanged(Sender: TObject;
@@ -255,7 +238,7 @@ begin
   Ubication.Este:=Round(UTM.X).ToString+' E';
   Ubication.Norte:=Round(UTM.Y).ToString+' N';
   //Ubication.URLFull:=MapURL+'#map='+Ubication.Zoom+'/'+Ubication.Lat+'/'+Ubication.Lon;
-  Ubication.URLFull:='https://www.openstreetmap.org/export/embed.html?bbox='+
+  //Ubication.URLFull:='https://www.openstreetmap.org/export/embed.html?bbox='+
 
   if not IsNaN(NewLocation.Longitude) then
   begin
@@ -267,20 +250,18 @@ begin
     ELat.Text:=Ubication.Lat;
     ENorte.Text:=Ubication.Norte;
   end;
-  WebBrowser.URL:=Ubication.URLFull;
-  WebBrowser.StartLoading;
+  //WebBrowser.URL:=Ubication.URLFull;
+  //WebBrowser.StartLoading;
 end;
 
 procedure TFPrinc.SBAcercaClick(Sender: TObject);
 begin
-  //AbrirVentana(TFAcerca);
   try
     Application.CreateForm(TFAcerca,FActiveForm);
     FActiveForm.Show;
   finally
     Screen.PrepareClosePopups(FAcerca);
     Screen.ClosePopupForms;
-    //FreeAndNil(FActiveForm);
   end;
 end;
 
@@ -311,14 +292,6 @@ begin
   ELat.Text:=Ubication.Lat;
   ELon.Text:=Ubication.Lon;
   TrBarZoom.Value:=StrToFloat(Ubication.Zoom);
-
-  {P1:=TPointF.Create(0,0);
-  P2:=TPointF.Create(WebBrowser.Width,WebBrowser.Height);
-  WebBrowser.Canvas.BeginScene;
-  WebBrowser.Canvas.Stroke.Thickness:=3;
-  WebBrowser.Canvas.Stroke.Color:=TAlphaColors.Red;
-  WebBrowser.Canvas.DrawLine(P1,P2,100);
-  WebBrowser.Canvas.EndScene;}
 end;
 
 end.
@@ -326,9 +299,5 @@ end.
 {
 https://www.openstreetmap.org/export/embed.html?bbox=
         -67.39762,8.93701,-67.39447,8.93433&layer=mapnik
-        se toma el punto medio de estas dos coordenadas y ese será el centro.
-        el zoom viene determinado por el mismo punto medio:
-        -67.396045,8.93567
-https://www.openstreetmap.org/export/embed.html?bbox=-82,13,-53,1&layer=mapnik
-  más ajustado a Venezuela: -73,12.5,-59.7,0.45
+  más ajustado a Venezuela:    -73.400,0.400,-59.700,12.600
 }
