@@ -15,19 +15,27 @@ program MisMapas;
 
 uses
   System.StartUpCopy,
+  {$IFDEF ANDROID}
   Androidapi.JNI.App,
   Androidapi.JNI.GraphicsContentViewText,
   Androidapi.Helpers,
+  {$ENDIF }
   FMX.Forms,
   Principal in 'Principal.pas' {FPrinc},
-  AcercaFrm in 'AcercaFrm.pas' {FAcerca};
+  Acerca in 'Acerca.pas' {FrmAcerca: TFrame},
+  UtilMapas in 'UtilMapas.pas';
 
 {$R *.res}
 
 begin
   Application.Initialize;
-  SharedActivity.getWindow.addFlags(TJWindowManager_LayoutParams.JavaClass.FLAG_KEEP_SCREEN_ON);
-  Application.FormFactor.Orientations := [TFormOrientation.Portrait, TFormOrientation.InvertedPortrait, TFormOrientation.Landscape, TFormOrientation.InvertedLandscape];
+  {$IFDEF ANDROID}
+    SharedActivity.getWindow.addFlags(
+      TJWindowManager_LayoutParams.JavaClass.FLAG_KEEP_SCREEN_ON);
+  {$ENDIF}
+  Application.FormFactor.Orientations := [TFormOrientation.Portrait,
+    TFormOrientation.InvertedPortrait, TFormOrientation.Landscape,
+    TFormOrientation.InvertedLandscape];
   Application.CreateForm(TFPrinc, FPrinc);
   Application.Run;
 end.

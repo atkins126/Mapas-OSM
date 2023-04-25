@@ -9,21 +9,10 @@ uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.WebBrowser,
   FMX.StdCtrls, FMX.Controls.Presentation, FMX.Edit, FMX.Layouts, FMX.Objects,
-  FMX.Ani, System.Sensors, System.Sensors.Components, System.Math, UTM_WGS84;
+  FMX.Ani, System.Sensors, System.Sensors.Components, UTM_WGS84, System.Math,
+  System.IOUtils, Acerca, UtilMapas;
 
 type
-  TUbicacion = record
-    Lat,Lon,
-    Este,Norte,
-    URLFull,
-    Zoom: string;
-  end;
-
-  TPosicion = record
-    X,Y: Single;
-    CG: TLocationCoord2D;
-  end;
-
   TFPrinc = class(TForm)
     WebBrowser: TWebBrowser;
     ELat: TEdit;
@@ -56,6 +45,9 @@ type
     Label6: TLabel;
     LRumbo: TLabel;
     ImgFlecha: TImage;
+    LayAcerca: TLayout;
+    FrmAcerca1: TFrmAcerca;
+    Imagen: TImage;
     procedure FormShow(Sender: TObject);
     procedure BBuscarClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -71,117 +63,66 @@ type
     procedure SwGPSSwitch(Sender: TObject);
     procedure LocSensorHeadingChanged(Sender: TObject;
       const AHeading: THeading);
+    procedure FrmAcerca1BAceptarClick(Sender: TObject);
   private
-
+    procedure MostrarMapa(Loc: TLocationCoord2D);
   public
     { Public declarations }
   end;
 
-const
-  MapURL='https://www.openstreetmap.org/';
-
 var
   FPrinc: TFPrinc;
   Ubication: TUbicacion;
-  ZoomChanged: boolean;
   FActiveForm: TForm;
 
 implementation
 
 {$R *.fmx}
-{$R *.Windows.fmx MSWINDOWS}
 {$R *.BAE2E2665F7E41AE9F0947E9D8BC3706.fmx ANDROID}
 
-uses AcercaFrm;
+uses
+  System.Permissions, FMX.DialogService;
 
-procedure ParseURLToCoords(sURL: string; var Ubic: TUbicacion);
+procedure TFPrinc.MostrarMapa(Loc: TLocationCoord2D);
 var
-  I,Pos: integer;
+  UTM: TPosicion;
+  Posc: TTile;
+  Coords: TCoords;
 begin
-  Ubic.Zoom:='';
-  Ubic.Lat:='';
-  Ubic.Lon:='';
-  Ubic.URLFull:=sURL;
-  if sURL<>MapURL then
+  CargarCoordenadas(Loc,UTM);
+  Ubication.Lat:=FormatFloat('#0.######',Loc.Latitude);
+  Ubication.Lon:=FormatFloat('#0.######',Loc.Longitude);
+  Ubication.Este:=Round(UTM.X).ToString+' E';
+  Ubication.Norte:=Round(UTM.Y).ToString+' N';
+  Coords:=ObtenerCoordenadas(Loc,WebBrowser.Width,WebBrowser.Height,
+                             Round(TrBarZoom.Value));
+  Ubication.URLFull:=MapURL+FormatFloat('#0.######',Coords.TopLeft.Lon)+','+
+    FormatFloat('#0.######',Coords.TopLeft.Lat)+','+
+    FormatFloat('#0.######',Coords.BottomRight.Lon)+','+
+    FormatFloat('#0.######',Coords.BottomRight.Lat)+'&layer=mapnik';
+  if not IsNaN(Loc.Longitude) then
   begin
-    //desgranar aquí partiendo de la cadena "#map="
-    Pos:=Length(MapURL+'#map=')+1;
-    for I:=1 to 2 do
-    begin
-      while Copy(sURL,Pos,1)<>'/' do
-      begin
-        if I=1 then Ubic.Zoom:=Ubic.Zoom+Copy(sURL,Pos,1)  //el zoom
-               else Ubic.Lat:=Ubic.Lat+Copy(sURL,Pos,1);   //la latitud
-        Inc(Pos);
-      end;
-      Pos:=Pos+1;
-    end;
-    //se obtiene la longitud:
-    while Pos<=Length(sURL) do
-    begin
-      Ubic.Lon:=Ubic.Lon+Copy(sURL,Pos,1);
-      Inc(Pos);
-    end;
+    ELon.Text:=Ubication.Lon;
+    EEste.Text:=Ubication.Este;
   end;
-end;
-
-function CaractExiste(Strng: string; Charact: char): boolean;
-var
-  I: byte;
-  Existe: boolean;
-begin
-  Existe:=false;
-  for I:=1 to Length(Strng) do
+  if not IsNaN(Loc.Latitude) then
   begin
-    Existe:=Strng[I]=Charact;
-    if Existe then Break;
+    ELat.Text:=Ubication.Lat;
+    ENorte.Text:=Ubication.Norte;
   end;
-  Result:=Existe;
-end;
-
-procedure CargarCoordenadas(CoordGPS: TLocationCoord2D; var CoordPos: TPosicion);
-var
-  LatLon: TRecLatLon;
-  UTM: TRecUTM;
-begin
-  LatLon.Lat:=CoordGPS.Latitude;
-  LatLon.Lon:=CoordGPS.Longitude;
-  LatLon_To_UTM(LatLon,UTM);
-  CoordPos.CG:=CoordGPS;
-  CoordPos.X:=UTM.X;
-  CoordPos.Y:=UTM.Y;
-end;
-
-function Orientacion(Grados: double): string;
-begin
-  case Round(Grados) of
-    0..10,350..360: Result:='N';  //norte
-    11..34: Result:='N - NE';     //norte-noreste
-    35..54: Result:='NE';         //noreste
-    55..79: Result:='E - NE';     //este-noreste
-    80..100: Result:='E';         //este
-    101..124: Result:='E - SE';   //este-sureste
-    125..144: Result:='SE';       //sureste
-    145..169: Result:='S - SE';   //sur-sureste
-    170..190: Result:='S';        //sur
-    191..214: Result:='S - SW';   //sur-suroeste
-    215..234: Result:='SW';       //suroeste
-    235..259: Result:='W - SW';   //oeste-suroeste
-    260..280: Result:='W';        //oeste
-    281..304: Result:='W - NW';   //oeste-noroeste
-    305..324: Result:='NW';       //noroeste
-    325..349: Result:='N - NW';   //norte-noroeste
-  end;
-end;
-
-procedure TFPrinc.BBuscarClick(Sender: TObject);
-begin
-  Ubication.Lat:=ELat.Text;
-  Ubication.Lon:=ELon.Text;
-  Ubication.Zoom:=Round(TrBarZoom.Value).ToString;
-  Ubication.URLFull:=MapURL+'#map='+Ubication.Zoom+'/'+Ubication.Lat+'/'+Ubication.Lon;
   WebBrowser.URL:=Ubication.URLFull;
   WebBrowser.StartLoading;
+end;
+
+/// Eventos ///
+
+procedure TFPrinc.BBuscarClick(Sender: TObject);
+var
+  Coord: TLocationCoord2D;
+begin
+  Coord.Latitude:=ELat.Text.ToDouble;
+  Coord.Longitude:=ELon.Text.ToDouble;
+  MostrarMapa(Coord);
 end;
 
 procedure TFPrinc.ELatChange(Sender: TObject);
@@ -198,22 +139,45 @@ end;
 procedure TFPrinc.FormCreate(Sender: TObject);
 begin
   FormatSettings.DecimalSeparator:='.';
+  //la URL por defecto (muestra a Venezuela):
   WebBrowser.URL:='https://www.openstreetmap.org/export/embed.html?bbox='+
-                  '-73.400,0.400,-59.700,12.600&layer=mapnik';
+                  '-73.3650,0.6350,-59.8000,12.265&layer=mapnik';
+         // -73.3650,0.6350,-59.8000,12.265
+  //se cargan los valores guardados en archivo .ini:
+  Sistema.ArchivoIni:=TPath.GetHomePath+'/MisMapas.ini';
+  Sistema.Zoom:=10;
+  TrBarZoom.Value:=10;
+  if FileExists(Sistema.ArchivoIni) then
+  begin
+    CargarINI;
+    lrumbo.Text:=copy(Sistema.ArchivoIni,Sistema.ArchivoIni.Length-22,20);
+  end
+  else
+  begin
+    //TrBarZoom.Value:=10;
+    GuardarIni(Sistema.Zoom);
+    lrumbo.Text:='no hay';
+  end;
+  TrBarZoom.Value:=Sistema.Zoom;
+  LZoom.Text:=Sistema.Zoom.ToString;
+  //esto es temporal:
+  ELon.Text:='-67.4181';
+  ELat.Text:='8.9047';
+
 end;
 
 procedure TFPrinc.FormShow(Sender: TObject);
-//var
-  //Coord: string;
 begin
-  //https://www.openstreetmap.org/#map=6/6.447/-66.579
-  //esto es una prueba:
-  //LocSensor.Active:=SwGPS.IsChecked;
-  LZoom.Text:=TrBarZoom.Value.ToString;
-  //WebBrowser.URL:=MapURL;
-  WebBrowser.URL:='https://www.openstreetmap.org/export/embed.html?bbox='+
-                  '-73.400,0.400,-59.700,12.600&layer=mapnik';
   WebBrowser.StartLoading;
+  {if FileExists(Sistema.ArchivoIni) then
+    lrumbo.Text:=Sistema.ArchivoIni
+    else lrumbo.Text:='no hay';}
+end;
+
+procedure TFPrinc.FrmAcerca1BAceptarClick(Sender: TObject);
+begin
+  LayAcerca.Visible:=false;
+  LayPrinc.Visible:=true;
 end;
 
 procedure TFPrinc.LocSensorHeadingChanged(Sender: TObject;
@@ -229,75 +193,74 @@ end;
 
 procedure TFPrinc.LocSensorLocationChanged(Sender: TObject; const OldLocation,
   NewLocation: TLocationCoord2D);
-var
-  UTM: TPosicion;
 begin
-  CargarCoordenadas(NewLocation,UTM);
-  Ubication.Lat:=FormatFloat('#0.######',NewLocation.Latitude);
-  Ubication.Lon:=FormatFloat('#0.######',NewLocation.Longitude);
-  Ubication.Este:=Round(UTM.X).ToString+' E';
-  Ubication.Norte:=Round(UTM.Y).ToString+' N';
-  //Ubication.URLFull:=MapURL+'#map='+Ubication.Zoom+'/'+Ubication.Lat+'/'+Ubication.Lon;
-  //Ubication.URLFull:='https://www.openstreetmap.org/export/embed.html?bbox='+
-
-  if not IsNaN(NewLocation.Longitude) then
-  begin
-    ELon.Text:=Ubication.Lon;
-    EEste.Text:=Ubication.Este;
-  end;
-  if not IsNaN(NewLocation.Latitude) then
-  begin
-    ELat.Text:=Ubication.Lat;
-    ENorte.Text:=Ubication.Norte;
-  end;
-  //WebBrowser.URL:=Ubication.URLFull;
-  //WebBrowser.StartLoading;
+  MostrarMapa(NewLocation);
 end;
 
 procedure TFPrinc.SBAcercaClick(Sender: TObject);
 begin
-  try
-    Application.CreateForm(TFAcerca,FActiveForm);
-    FActiveForm.Show;
-  finally
-    Screen.PrepareClosePopups(FAcerca);
-    Screen.ClosePopupForms;
-  end;
+  LayPrinc.Visible:=false;
+  LayAcerca.Visible:=true;
 end;
 
 procedure TFPrinc.SBSalirClick(Sender: TObject);
 begin
+  {$IFDEF ANDROID}
   MainActivity.finish;
+  {$ENDIF}
 end;
 
 procedure TFPrinc.SwGPSSwitch(Sender: TObject);
+const
+  PermissionAccessFineLocation='android.permission.ACCESS_FINE_LOCATION';
 begin
-  LocSensor.Active:=SwGPS.IsChecked;
-  if SwGPS.IsChecked then TrBarZoom.Value:=15;
+  {$IFDEF ANDROID}
+  PermissionsService.RequestPermissions([PermissionAccessFineLocation],
+    procedure(const APermissions: TClassicStringDynArray;
+              const AGrantResults: TClassicPermissionStatusDynArray)
+    begin
+      if (Length(AGrantResults)=1) and (AGrantResults[0]=TPermissionStatus.Granted) then
+        LocSensor.Active:=SwGPS.IsChecked
+      else
+      begin
+        SwGPS.IsChecked:=false;
+        TDialogService.ShowMessage('Permiso de Localización no está permitido');
+      end;
+    end);
+  {$ELSE}
+    LocSensor.Active := SwitchGPS.IsChecked;
+  {$ENDIF}
   ELon.ReadOnly:=SwGPS.IsChecked;
   ELat.ReadOnly:=SwGPS.IsChecked;
+  Ubication.Zoom:=Round(TrBarZoom.Value).ToString;
 end;
 
 procedure TFPrinc.TrBarZoomChange(Sender: TObject);
 begin
   Ubication.Zoom:=Round(TrBarZoom.Value).ToString;
   LZoom.Text:=Ubication.Zoom;
+  if SwGPS.IsChecked then BBuscarClick(Self);
+  GuardarIni(Round(TrBarZoom.Value));
 end;
 
 procedure TFPrinc.WebBrowserDidFinishLoad(ASender: TObject);
-var
-  P1,P2: TPointF;
 begin
-  ParseURLToCoords(WebBrowser.URL,Ubication);
+  {ParseURLToCoords(WebBrowser.URL,Ubication);
   ELat.Text:=Ubication.Lat;
   ELon.Text:=Ubication.Lon;
-  TrBarZoom.Value:=StrToFloat(Ubication.Zoom);
+  TrBarZoom.Value:=StrToFloat(Ubication.Zoom);}
 end;
 
 end.
 
-{
+  { TODO : - Guardar en archivo .ini el último valor del zoom }
+
+{ más ajustado a Venezuela:
 https://www.openstreetmap.org/export/embed.html?bbox=
-        -67.39762,8.93701,-67.39447,8.93433&layer=mapnik
-  más ajustado a Venezuela:    -73.400,0.400,-59.700,12.600
+        -73.400,0.400,-59.700,12.600&layer=mapnik
+
+Ubication.URLFull:='https://tile.openstreetmap.org/'+Ubication.Zoom+
+                     '/'+Posc.X.ToString+'/'+Posc.Y.ToString+'.png';
+
+WebBrowser.URL:='https://www.openstreetmap.org/#map=6/6.447/-66.579';
 }
