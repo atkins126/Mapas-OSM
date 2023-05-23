@@ -45,8 +45,10 @@ object FPrinc: TFPrinc
             end
           end
           inherited Layout2: TLayout
-            inherited BAceptar: TButton
-              OnClick = FrmAcerca1BAceptarClick
+            inherited RectAceptar: TRectangle
+              inherited BAceptar: TButton
+                OnClick = FrmAcerca1BAceptarClick
+              end
             end
           end
         end
@@ -196,15 +198,14 @@ object FPrinc: TFPrinc
           Stroke.Thickness = 2.000000000000000000
           object WebBrowser: TWebBrowser
             Align = Client
-            Size.Width = 433.000000000000000000
-            Size.Height = 421.000000000000000000
+            Size.Width = 431.000000000000000000
+            Size.Height = 419.000000000000000000
             Size.PlatformDefault = False
-            Margins.Left = 1.000000000000000000
-            Margins.Top = 1.000000000000000000
-            Margins.Right = 1.000000000000000000
-            Margins.Bottom = 1.000000000000000000
+            Margins.Left = 2.000000000000000000
+            Margins.Top = 2.000000000000000000
+            Margins.Right = 2.000000000000000000
+            Margins.Bottom = 2.000000000000000000
             WindowsEngine = IEOnly
-            OnDidFinishLoad = WebBrowserDidFinishLoad
           end
         end
       end
@@ -228,17 +229,6 @@ object FPrinc: TFPrinc
           Size.Height = 30.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 0
-          object BBuscar: TButton
-            Align = Right
-            Position.X = 305.000000000000000000
-            Size.Width = 150.000000000000000000
-            Size.Height = 30.000000000000000000
-            Size.PlatformDefault = False
-            TabOrder = 0
-            Text = 'Buscar'
-            TintColor = claGold
-            OnClick = BBuscarClick
-          end
           object SwGPS: TSwitch
             Align = Left
             IsChecked = False
@@ -247,7 +237,7 @@ object FPrinc: TFPrinc
             Size.Width = 44.000000000000000000
             Size.Height = 26.000000000000000000
             Size.PlatformDefault = False
-            TabOrder = 1
+            TabOrder = 0
             OnClick = SwGPSSwitch
             OnSwitch = SwGPSSwitch
           end
@@ -263,7 +253,34 @@ object FPrinc: TFPrinc
             TextSettings.Font.Size = 14.000000000000000000
             TextSettings.Font.StyleExt = {00070000000000000004000000}
             Text = 'Usar GPS'
-            TabOrder = 2
+            TabOrder = 1
+          end
+          object RectBuscar: TRectangle
+            Align = Right
+            Fill.Color = claNull
+            Position.X = 305.000000000000000000
+            Size.Width = 150.000000000000000000
+            Size.Height = 30.000000000000000000
+            Size.PlatformDefault = False
+            XRadius = 5.000000000000000000
+            YRadius = 5.000000000000000000
+            object BBuscar: TButton
+              Align = Client
+              Size.Width = 150.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Buscar'
+              TintColor = claGold
+              OnClick = BBuscarClick
+            end
+            object ShadowEffect1: TShadowEffect
+              Distance = 3.000000000000000000
+              Direction = 45.000000000000000000
+              Softness = 0.300000011920929000
+              Opacity = 0.600000023841857900
+              ShadowColor = claBlack
+            end
           end
         end
         object LayLatitud: TLayout
@@ -299,6 +316,7 @@ object FPrinc: TFPrinc
             Size.Width = 259.000000000000000000
             Size.Height = 32.000000000000000000
             Size.PlatformDefault = False
+            OnChange = ELonChange
             OnKeyDown = ELatKeyDown
             OnKeyUp = ELatKeyDown
           end
@@ -314,6 +332,7 @@ object FPrinc: TFPrinc
             Size.Width = 100.000000000000000000
             Size.Height = 32.000000000000000000
             Size.PlatformDefault = False
+            OnChange = ELonChange
             OnKeyDown = ELatKeyDown
             OnKeyUp = ELatKeyDown
           end

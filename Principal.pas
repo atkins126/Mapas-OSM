@@ -10,7 +10,7 @@ uses
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.WebBrowser,
   FMX.StdCtrls, FMX.Controls.Presentation, FMX.Edit, FMX.Layouts, FMX.Objects,
   FMX.Ani, System.Sensors, System.Sensors.Components, UTM_WGS84, System.Math,
-  System.IOUtils, Acerca, UtilMapas;
+  System.IOUtils, Acerca, UtilMapas, FMX.Effects;
 
 type
   TFPrinc = class(TForm)
@@ -49,14 +49,14 @@ type
     FrmAcerca1: TFrmAcerca;
     Imagen: TImage;
     RectBrowser: TRectangle;
+    RectBuscar: TRectangle;
+    ShadowEffect1: TShadowEffect;
     procedure FormShow(Sender: TObject);
     procedure BBuscarClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure TrBarZoomChange(Sender: TObject);
-    procedure WebBrowserDidFinishLoad(ASender: TObject);
     procedure ELatKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char;
       Shift: TShiftState);
-    procedure ELatChange(Sender: TObject);
     procedure SBAcercaClick(Sender: TObject);
     procedure SBSalirClick(Sender: TObject);
     procedure LocSensorLocationChanged(Sender: TObject; const OldLocation,
@@ -65,6 +65,7 @@ type
     procedure LocSensorHeadingChanged(Sender: TObject;
       const AHeading: THeading);
     procedure FrmAcerca1BAceptarClick(Sender: TObject);
+    procedure ELonChange(Sender: TObject);
   private
     procedure MostrarMapa(Loc: TLocationCoord2D);
   public
@@ -84,10 +85,27 @@ implementation
 uses
   System.Permissions, FMX.DialogService;
 
+procedure ActivarGPS(LcSensor: TLocationSensor; Activo: boolean);
+const
+  PermissionAccessFineLocation='android.permission.ACCESS_FINE_LOCATION';
+begin
+  PermissionsService.RequestPermissions([PermissionAccessFineLocation],
+    procedure(const APermissions: TClassicStringDynArray;
+              const AGrantResults: TClassicPermissionStatusDynArray)
+    begin
+      if (Length(AGrantResults)=1) and (AGrantResults[0]=TPermissionStatus.Granted) then
+        LcSensor.Active:=Activo
+      else
+      begin
+        Activo:=false;
+        TDialogService.ShowMessage('Acceso a Localización no está permitido');
+      end;
+    end);
+end;
+
 procedure TFPrinc.MostrarMapa(Loc: TLocationCoord2D);
 var
   UTM: TPosicion;
-  Posc: TTile;
   Coords: TCoords;
 begin
   CargarCoordenadas(Loc,UTM);
@@ -126,27 +144,27 @@ begin
   MostrarMapa(Coord);
 end;
 
-procedure TFPrinc.ELatChange(Sender: TObject);
-begin
-  TrBarZoom.Value:=StrToFloat(Ubication.Zoom);
-end;
-
 procedure TFPrinc.ELatKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char;
   Shift: TShiftState);
 begin
   if (KeyChar='.') and CaractExiste(TEdit(Sender).Text,'.') then KeyChar:=#0;
 end;
 
+procedure TFPrinc.ELonChange(Sender: TObject);
+begin
+  BBuscar.Enabled:=(ELon.Text<>'') and (ELat.Text<>'');
+end;
+
 procedure TFPrinc.FormCreate(Sender: TObject);
 begin
   FormatSettings.DecimalSeparator:='.';
+  ELonChange(Self);
   //la URL por defecto (muestra a Venezuela):
-  WebBrowser.URL:='https://www.openstreetmap.org/export/embed.html?bbox='+
-                  '-73.3650,0.6350,-59.8000,12.265&layer=mapnik';
+  WebBrowser.URL:=MapURL+'-73.3650,0.6350,-59.8000,12.265&layer=mapnik';
   //se cargan los valores guardados en archivo .ini:
   Sistema.ArchivoIni:=TPath.GetHomePath+'/MisMapas.ini';
   if FileExists(Sistema.ArchivoIni) then CargarINI
-                                    else GuardarIni(Sistema.Zoom);
+                                    else GuardarINI(Sistema.Zoom);
   TrBarZoom.Value:=Sistema.Zoom;
   LZoom.Text:=Sistema.Zoom.ToString;
 end;
@@ -193,28 +211,15 @@ begin
 end;
 
 procedure TFPrinc.SwGPSSwitch(Sender: TObject);
-const
-  PermissionAccessFineLocation='android.permission.ACCESS_FINE_LOCATION';
 begin
   {$IFDEF ANDROID}
-  PermissionsService.RequestPermissions([PermissionAccessFineLocation],
-    procedure(const APermissions: TClassicStringDynArray;
-              const AGrantResults: TClassicPermissionStatusDynArray)
-    begin
-      if (Length(AGrantResults)=1) and (AGrantResults[0]=TPermissionStatus.Granted) then
-        LocSensor.Active:=SwGPS.IsChecked
-      else
-      begin
-        SwGPS.IsChecked:=false;
-        TDialogService.ShowMessage('Permiso de Localización no está permitido');
-      end;
-    end);
+  ActivarGPS(LocSensor,SwGPS.IsChecked);
   {$ELSE}
     LocSensor.Active := SwitchGPS.IsChecked;
   {$ENDIF}
   ELon.ReadOnly:=SwGPS.IsChecked;
   ELat.ReadOnly:=SwGPS.IsChecked;
-  BBuscar.Visible:=not SwGPS.IsChecked;
+  RectBuscar.Visible:=not SwGPS.IsChecked;
   Ubication.Zoom:=Round(TrBarZoom.Value).ToString;
 end;
 
@@ -224,20 +229,10 @@ begin
   Sistema.Zoom:=Round(TrBarZoom.Value);
   LZoom.Text:=Ubication.Zoom;
   if SwGPS.IsChecked then BBuscarClick(Self);
-  GuardarIni(Sistema.Zoom);
-end;
-
-procedure TFPrinc.WebBrowserDidFinishLoad(ASender: TObject);
-begin
-  {ParseURLToCoords(WebBrowser.URL,Ubication);
-  ELat.Text:=Ubication.Lat;
-  ELon.Text:=Ubication.Lon;
-  TrBarZoom.Value:=StrToFloat(Ubication.Zoom);}
+  GuardarINI(Sistema.Zoom);
 end;
 
 end.
-
-  { TODO : - Guardar en archivo .ini el último valor del zoom }
 
 { más ajustado a Venezuela:
 https://www.openstreetmap.org/export/embed.html?bbox=
@@ -245,6 +240,4 @@ https://www.openstreetmap.org/export/embed.html?bbox=
 
 Ubication.URLFull:='https://tile.openstreetmap.org/'+Ubication.Zoom+
                      '/'+Posc.X.ToString+'/'+Posc.Y.ToString+'.png';
-
-WebBrowser.URL:='https://www.openstreetmap.org/#map=6/6.447/-66.579';
 }
